@@ -92,14 +92,20 @@ export function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Titlebar region */}
+      <header
+        data-tauri-drag-region
+        className="h-10 shrink-0 flex items-center gap-2 px-4 pl-20 border-b bg-background"
+      >
+        <Button variant="ghost" onClick={() => navigate("/")}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+      </header>
+
+      <div className="flex-1 p-8 overflow-auto">
       <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate("/")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-        </div>
 
         <Card>
           <CardHeader>
@@ -205,6 +211,7 @@ export function Settings() {
             </div>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );

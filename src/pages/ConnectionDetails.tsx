@@ -1194,7 +1194,7 @@ export function ConnectionDetails() {
   return (
     <SidebarProvider>
       <Sidebar>
-        <SidebarHeader className="border-b p-4">
+        <SidebarHeader className="border-b p-4 pt-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Table className="w-5 h-5" />
@@ -1439,7 +1439,10 @@ export function ConnectionDetails() {
       </Sidebar>
 
       <SidebarInset className="min-w-0 overflow-hidden flex flex-col">
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <header
+          data-tauri-drag-region
+          className="flex h-10 shrink-0 items-center gap-2 border-b px-4 pl-20 bg-background"
+        >
           <SidebarTrigger className="-ml-1" />
           <div className="flex items-center gap-2 flex-1">
             <Button
@@ -1452,7 +1455,7 @@ export function ConnectionDetails() {
               Back
             </Button>
           </div>
-          <div className="flex items-center gap-2 mr-12">
+          <div className="flex items-center gap-2">
             <Badge variant="secondary" className="capitalize">
               {connection.type}
             </Badge>

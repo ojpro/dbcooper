@@ -107,28 +107,34 @@ export function Connections() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-end gap-2 mb-4">
-          <UpdateChecker />
-          <a
-            href="https://github.com/amalshaji/dbcooper"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-accent transition-colors"
-            title="View on GitHub"
-          >
-            <GithubLogo className="w-5 h-5" />
-          </a>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Titlebar region */}
+      <header
+        data-tauri-drag-region
+        className="h-10 shrink-0 flex items-center justify-end gap-2 px-4 pl-20 border-b bg-background"
+      >
+        <UpdateChecker />
+        <a
+          href="https://github.com/amalshaji/dbcooper"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-accent transition-colors"
+          title="View on GitHub"
+        >
+          <GithubLogo className="w-5 h-5" />
+        </a>
 
-          <button
-            onClick={() => navigate("/settings")}
-            className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-accent transition-colors"
-            title="Settings"
-          >
-            <Gear className="w-5 h-5" />
-          </button>
-        </div>
+        <button
+          onClick={() => navigate("/settings")}
+          className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-accent transition-colors"
+          title="Settings"
+        >
+          <Gear className="w-5 h-5" />
+        </button>
+      </header>
+
+      <div className="flex-1 p-8 overflow-auto">
+      <div className="max-w-7xl mx-auto">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -273,6 +279,7 @@ export function Connections() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
     </div>
   );
 }
