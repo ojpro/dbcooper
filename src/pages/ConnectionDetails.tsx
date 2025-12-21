@@ -41,6 +41,7 @@ import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Collapsible,
@@ -72,6 +73,40 @@ import { Spinner } from "@/components/ui/spinner";
 import { SqlEditor } from "@/components/SqlEditor";
 import { TabBar } from "@/components/TabBar";
 import { useAIGeneration } from "@/hooks/useAIGeneration";
+
+// Header component that uses useSidebar for conditional padding
+function ContentHeader({ connection, navigate }: { connection: Connection; navigate: (path: string) => void }) {
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
+  return (
+    <header
+      data-tauri-drag-region
+      className={`flex h-10 shrink-0 items-center gap-2 border-b px-4 bg-background ${isCollapsed ? 'pl-20' : ''}`}
+    >
+      <SidebarTrigger className="-ml-1" />
+      <div className="flex items-center gap-2 flex-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/")}
+          className="gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </Button>
+      </div>
+      <div className="flex items-center gap-2">
+        <Badge variant="secondary" className="capitalize">
+          {connection.type}
+        </Badge>
+        <Badge variant={connection.ssl ? "default" : "secondary"}>
+          SSL: {connection.ssl ? "Yes" : "No"}
+        </Badge>
+      </div>
+    </header>
+  );
+}
 
 export function ConnectionDetails() {
   const { uuid } = useParams<{ uuid: string }>();
@@ -1439,31 +1474,7 @@ export function ConnectionDetails() {
       </Sidebar>
 
       <SidebarInset className="min-w-0 overflow-hidden flex flex-col">
-        <header
-          data-tauri-drag-region
-          className="flex h-10 shrink-0 items-center gap-2 border-b px-4 pl-20 bg-background"
-        >
-          <SidebarTrigger className="-ml-1" />
-          <div className="flex items-center gap-2 flex-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/")}
-              className="gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="capitalize">
-              {connection.type}
-            </Badge>
-            <Badge variant={connection.ssl ? "default" : "secondary"}>
-              SSL: {connection.ssl ? "Yes" : "No"}
-            </Badge>
-          </div>
-        </header>
+        <ContentHeader connection={connection} navigate={navigate} />
 
         <TabBar
           tabs={tabs}
