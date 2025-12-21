@@ -4,6 +4,16 @@ A vibe-coded database client built with Tauri, React, and TypeScript.
 
 ![dbcooper](./dbcooper.png)
 
+## Installation
+
+Download the latest `.dmg` from [Releases](https://github.com/amalshaji/dbcooper/releases).
+
+**macOS users:** After installing, you'll need to bypass Gatekeeper since the app isn't notarized:
+```bash
+xattr -cr /Applications/DBcooper.app
+```
+Then you can open the app normally.
+
 ## Features
 
 - 🔌 **Connection Management** - Create, edit, and manage multiple PostgreSQL connections

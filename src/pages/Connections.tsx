@@ -17,6 +17,7 @@ import { Database, GithubLogo, PencilSimple, Trash } from "@phosphor-icons/react
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { api, Connection, ConnectionFormData } from "@/lib/tauri";
 import { Spinner } from "@/components/ui/spinner";
+import { UpdateChecker } from "@/components/UpdateChecker";
 
 export function Connections() {
   const navigate = useNavigate();
@@ -108,6 +109,19 @@ export function Connections() {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-end gap-2 mb-4">
+          <UpdateChecker />
+          <a
+            href="https://github.com/amalshaji/dbcooper"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-accent transition-colors"
+            title="View on GitHub"
+          >
+            <GithubLogo className="w-5 h-5" />
+          </a>
+          <ThemeSwitcher />
+        </div>
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -117,21 +131,9 @@ export function Connections() {
                   Manage your database connections
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href="https://github.com/amalshaji/dbindex"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-accent transition-colors"
-                  title="View on GitHub"
-                >
-                  <GithubLogo className="w-5 h-5" />
-                </a>
-                <ThemeSwitcher />
-                <Button onClick={() => setIsFormOpen(true)}>
-                  New Connection
-                </Button>
-              </div>
+              <Button onClick={() => setIsFormOpen(true)}>
+                New Connection
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
