@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { check } from "@tauri-apps/plugin-updater";
+import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
@@ -8,7 +8,9 @@ import { api } from "@/lib/tauri";
 export function UpdateChecker() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [updateVersion, setUpdateVersion] = useState("");
-  const [updating, setUpdating] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [readyToInstall, setReadyToInstall] = useState(false);
+  const [updateRef, setUpdateRef] = useState<Update | null>(null);
 
   useEffect(() => {
     checkSettingsAndUpdate();
@@ -31,44 +33,62 @@ export function UpdateChecker() {
       if (update?.available) {
         setUpdateAvailable(true);
         setUpdateVersion(update.version);
+        setUpdateRef(update);
       }
     } catch (error) {
       console.error("Failed to check for updates:", error);
     }
   };
 
-  const handleUpdate = async () => {
-    if (!updateAvailable || updating) return;
+  const handleDownload = async () => {
+    if (!updateRef || downloading || readyToInstall) return;
 
     try {
-      setUpdating(true);
-      const update = await check();
-      
-      if (!update?.available) {
-        setUpdateAvailable(false);
-        return;
-      }
+      setDownloading(true);
+      await updateRef.download();
+      setReadyToInstall(true);
+      setDownloading(false);
+    } catch (error) {
+      console.error("Failed to download update:", error);
+      setDownloading(false);
+    }
+  };
 
-      await update.downloadAndInstall();
+  const handleInstall = async () => {
+    if (!updateRef || !readyToInstall) return;
+
+    try {
+      await updateRef.install();
       await relaunch();
     } catch (error) {
-      console.error("Failed to update:", error);
-      setUpdating(false);
+      console.error("Failed to install update:", error);
     }
   };
 
   if (!updateAvailable) return null;
 
+  if (readyToInstall) {
+    return (
+      <Badge
+        variant="default"
+        className="cursor-pointer hover:bg-primary/90 transition-colors"
+        onClick={handleInstall}
+      >
+        Restart to update
+      </Badge>
+    );
+  }
+
   return (
     <Badge
       variant="default"
       className="cursor-pointer hover:bg-primary/90 transition-colors"
-      onClick={handleUpdate}
+      onClick={handleDownload}
     >
-      {updating ? (
+      {downloading ? (
         <>
           <Spinner className="mr-2 h-3 w-3" />
-          Updating...
+          Downloading...
         </>
       ) : (
         `Update to v${updateVersion}`
