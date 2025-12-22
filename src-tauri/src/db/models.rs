@@ -15,6 +15,13 @@ pub struct Connection {
     pub username: String,
     pub password: String,
     pub ssl: i64,
+    pub ssh_enabled: i64,
+    pub ssh_host: String,
+    pub ssh_port: i64,
+    pub ssh_user: String,
+    pub ssh_password: String,
+    pub ssh_key_path: String,
+    pub ssh_use_key: i64,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -30,6 +37,24 @@ pub struct ConnectionFormData {
     pub username: String,
     pub password: String,
     pub ssl: bool,
+    #[serde(default)]
+    pub ssh_enabled: bool,
+    #[serde(default)]
+    pub ssh_host: String,
+    #[serde(default = "default_ssh_port")]
+    pub ssh_port: i64,
+    #[serde(default)]
+    pub ssh_user: String,
+    #[serde(default)]
+    pub ssh_password: String,
+    #[serde(default)]
+    pub ssh_key_path: String,
+    #[serde(default)]
+    pub ssh_use_key: bool,
+}
+
+fn default_ssh_port() -> i64 {
+    22
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

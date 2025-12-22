@@ -11,6 +11,13 @@ export interface Connection {
 	username: string;
 	password: string;
 	ssl: number;
+	ssh_enabled: number;
+	ssh_host: string;
+	ssh_port: number;
+	ssh_user: string;
+	ssh_password: string;
+	ssh_key_path: string;
+	ssh_use_key: number;
 	created_at: string;
 	updated_at: string;
 }
@@ -25,6 +32,13 @@ export interface ConnectionFormData {
 	username: string;
 	password: string;
 	ssl: boolean;
+	ssh_enabled?: boolean;
+	ssh_host?: string;
+	ssh_port?: number;
+	ssh_user?: string;
+	ssh_password?: string;
+	ssh_key_path?: string;
+	ssh_use_key?: boolean;
 }
 
 export interface TableInfo {
@@ -117,6 +131,13 @@ export const api = {
 			username: string;
 			password: string;
 			ssl: boolean;
+			ssh_enabled?: boolean;
+			ssh_host?: string;
+			ssh_port?: number;
+			ssh_user?: string;
+			ssh_password?: string;
+			ssh_key_path?: string;
+			ssh_use_key?: boolean;
 		}) => invoke<TestConnectionResult>("test_connection", params),
 
 		listTables: (connection: Connection) =>

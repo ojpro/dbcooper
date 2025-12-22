@@ -1,5 +1,6 @@
 mod commands;
 mod db;
+mod ssh_tunnel;
 
 use commands::connections::{
     create_connection, delete_connection, get_connection_by_uuid, get_connections,
@@ -18,6 +19,7 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             #[cfg(desktop)]
             app.handle()

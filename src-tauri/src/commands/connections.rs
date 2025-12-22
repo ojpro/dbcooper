@@ -30,11 +30,13 @@ pub async fn create_connection(
 ) -> Result<Connection, String> {
     let uuid = Uuid::new_v4().to_string();
     let ssl = if data.ssl { 1 } else { 0 };
+    let ssh_enabled = if data.ssh_enabled { 1 } else { 0 };
+    let ssh_use_key = if data.ssh_use_key { 1 } else { 0 };
 
     sqlx::query_as::<_, Connection>(
         r#"
-        INSERT INTO connections (uuid, type, name, host, port, database, username, password, ssl)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO connections (uuid, type, name, host, port, database, username, password, ssl, ssh_enabled, ssh_host, ssh_port, ssh_user, ssh_password, ssh_key_path, ssh_use_key)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING *
         "#,
     )
@@ -47,6 +49,13 @@ pub async fn create_connection(
     .bind(&data.username)
     .bind(&data.password)
     .bind(ssl)
+    .bind(ssh_enabled)
+    .bind(&data.ssh_host)
+    .bind(data.ssh_port)
+    .bind(&data.ssh_user)
+    .bind(&data.ssh_password)
+    .bind(&data.ssh_key_path)
+    .bind(ssh_use_key)
     .fetch_one(pool.inner())
     .await
     .map_err(|e| e.to_string())
@@ -59,11 +68,15 @@ pub async fn update_connection(
     data: ConnectionFormData,
 ) -> Result<Connection, String> {
     let ssl = if data.ssl { 1 } else { 0 };
+    let ssh_enabled = if data.ssh_enabled { 1 } else { 0 };
+    let ssh_use_key = if data.ssh_use_key { 1 } else { 0 };
 
     sqlx::query_as::<_, Connection>(
         r#"
         UPDATE connections
-        SET type = ?, name = ?, host = ?, port = ?, database = ?, username = ?, password = ?, ssl = ?, updated_at = datetime('now')
+        SET type = ?, name = ?, host = ?, port = ?, database = ?, username = ?, password = ?, ssl = ?,
+            ssh_enabled = ?, ssh_host = ?, ssh_port = ?, ssh_user = ?, ssh_password = ?, ssh_key_path = ?, ssh_use_key = ?,
+            updated_at = datetime('now')
         WHERE id = ?
         RETURNING *
         "#,
@@ -76,6 +89,13 @@ pub async fn update_connection(
     .bind(&data.username)
     .bind(&data.password)
     .bind(ssl)
+    .bind(ssh_enabled)
+    .bind(&data.ssh_host)
+    .bind(data.ssh_port)
+    .bind(&data.ssh_user)
+    .bind(&data.ssh_password)
+    .bind(&data.ssh_key_path)
+    .bind(ssh_use_key)
     .bind(id)
     .fetch_one(pool.inner())
     .await

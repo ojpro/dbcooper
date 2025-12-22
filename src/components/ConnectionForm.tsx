@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { ConnectionType } from "@/types/connection";
 import { api, ConnectionFormData, Connection } from "@/lib/tauri";
 import {
@@ -54,6 +55,13 @@ const defaultFormData: ConnectionFormData = {
   username: "",
   password: "",
   ssl: false,
+  ssh_enabled: false,
+  ssh_host: "",
+  ssh_port: 22,
+  ssh_user: "",
+  ssh_password: "",
+  ssh_key_path: "",
+  ssh_use_key: false,
 };
 
 export function ConnectionForm({ onSubmit, onCancel, isOpen, initialData }: ConnectionFormProps) {
@@ -61,6 +69,7 @@ export function ConnectionForm({ onSubmit, onCancel, isOpen, initialData }: Conn
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showSshPassword, setShowSshPassword] = useState(false);
 
   const isEditMode = !!initialData;
 
@@ -75,6 +84,13 @@ export function ConnectionForm({ onSubmit, onCancel, isOpen, initialData }: Conn
         username: initialData.username,
         password: initialData.password,
         ssl: initialData.ssl === 1,
+        ssh_enabled: initialData.ssh_enabled === 1,
+        ssh_host: initialData.ssh_host || "",
+        ssh_port: initialData.ssh_port || 22,
+        ssh_user: initialData.ssh_user || "",
+        ssh_password: initialData.ssh_password || "",
+        ssh_key_path: initialData.ssh_key_path || "",
+        ssh_use_key: initialData.ssh_use_key === 1,
       });
     } else {
       setFormData(defaultFormData);
@@ -99,6 +115,13 @@ export function ConnectionForm({ onSubmit, onCancel, isOpen, initialData }: Conn
         username: formData.username,
         password: formData.password,
         ssl: formData.ssl,
+        ssh_enabled: formData.ssh_enabled,
+        ssh_host: formData.ssh_host,
+        ssh_port: formData.ssh_port,
+        ssh_user: formData.ssh_user,
+        ssh_password: formData.ssh_password,
+        ssh_key_path: formData.ssh_key_path,
+        ssh_use_key: formData.ssh_use_key,
       });
       
       if (result.success) {
@@ -128,7 +151,7 @@ export function ConnectionForm({ onSubmit, onCancel, isOpen, initialData }: Conn
 
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-h-[85vh] overflow-y-auto">
         <AlertDialogHeader>
           <AlertDialogTitle>{isEditMode ? "Edit Connection" : "New Connection"}</AlertDialogTitle>
           <AlertDialogDescription>
@@ -256,9 +279,125 @@ export function ConnectionForm({ onSubmit, onCancel, isOpen, initialData }: Conn
               />
               <FieldLabel htmlFor="connection-ssl">Use SSL</FieldLabel>
             </Field>
+
+            {/* SSH Tunnel Section */}
+            <div className="border-t pt-4 mt-2">
+              <Field orientation="horizontal">
+                <input
+                  type="checkbox"
+                  id="connection-ssh-enabled"
+                  checked={formData.ssh_enabled}
+                  onChange={(e) => setFormData({ ...formData, ssh_enabled: e.target.checked })}
+                  className="rounded border-input"
+                />
+                <FieldLabel htmlFor="connection-ssh-enabled">Connect over SSH</FieldLabel>
+              </Field>
+
+              {formData.ssh_enabled && (
+                <div className="mt-4 space-y-4 pl-6 border-l-2 border-muted">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field>
+                      <FieldLabel htmlFor="ssh-host">SSH Host</FieldLabel>
+                      <Input
+                        id="ssh-host"
+                        type="text"
+                        value={formData.ssh_host}
+                        onChange={(e) => setFormData({ ...formData, ssh_host: e.target.value })}
+                        placeholder="jump-server.example.com"
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="ssh-port">SSH Port</FieldLabel>
+                      <Input
+                        id="ssh-port"
+                        type="number"
+                        value={formData.ssh_port}
+                        onChange={(e) => setFormData({ ...formData, ssh_port: Number(e.target.value) })}
+                      />
+                    </Field>
+                  </div>
+
+                  <Field>
+                    <FieldLabel htmlFor="ssh-user">SSH User</FieldLabel>
+                    <Input
+                      id="ssh-user"
+                      type="text"
+                      value={formData.ssh_user}
+                      onChange={(e) => setFormData({ ...formData, ssh_user: e.target.value })}
+                      placeholder="ubuntu"
+                    />
+                  </Field>
+
+                  <Field orientation="horizontal">
+                    <input
+                      type="checkbox"
+                      id="ssh-use-key"
+                      checked={formData.ssh_use_key}
+                      onChange={(e) => setFormData({ ...formData, ssh_use_key: e.target.checked })}
+                      className="rounded border-input"
+                    />
+                    <FieldLabel htmlFor="ssh-use-key">Use SSH Key</FieldLabel>
+                  </Field>
+
+                  {formData.ssh_use_key ? (
+                    <Field>
+                      <FieldLabel htmlFor="ssh-key-path">SSH Key Path</FieldLabel>
+                      <div className="flex gap-2">
+                        <Input
+                          id="ssh-key-path"
+                          type="text"
+                          value={formData.ssh_key_path}
+                          onChange={(e) => setFormData({ ...formData, ssh_key_path: e.target.value })}
+                          placeholder="~/.ssh/id_rsa"
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            const selected = await open({
+                              multiple: false,
+                              directory: false,
+                              title: "Select SSH Key",
+                            });
+                            if (selected) {
+                              setFormData({ ...formData, ssh_key_path: selected as string });
+                            }
+                          }}
+                        >
+                          Browse
+                        </Button>
+                      </div>
+                    </Field>
+                  ) : (
+                    <Field>
+                      <FieldLabel htmlFor="ssh-password">SSH Password</FieldLabel>
+                      <div className="relative">
+                        <Input
+                          id="ssh-password"
+                          type={showSshPassword ? "text" : "password"}
+                          value={formData.ssh_password}
+                          onChange={(e) => setFormData({ ...formData, ssh_password: e.target.value })}
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSshPassword(!showSshPassword)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {showSshPassword ? <EyeSlash className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        </button>
+                      </div>
+                    </Field>
+                  )}
+                </div>
+              )}
+            </div>
           </FieldGroup>
 
-          <AlertDialogFooter>
+          <AlertDialogFooter className="mt-6">
             <Button variant="outline" type="button" onClick={onCancel}>
               Cancel
             </Button>

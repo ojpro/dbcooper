@@ -2,6 +2,7 @@ use crate::db::models::{
     ColumnInfo, ForeignKeyInfo, IndexInfo, QueryResult, TableDataResponse, TableInfo,
     TableStructure, TestConnectionResult,
 };
+use crate::ssh_tunnel::SshTunnel;
 use serde_json::{json, Value};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Column, Row, TypeInfo};
@@ -29,8 +30,70 @@ pub async fn test_connection(
     username: String,
     password: String,
     ssl: bool,
+    ssh_enabled: Option<bool>,
+    ssh_host: Option<String>,
+    ssh_port: Option<i64>,
+    ssh_user: Option<String>,
+    ssh_password: Option<String>,
+    ssh_key_path: Option<String>,
+    ssh_use_key: Option<bool>,
 ) -> Result<TestConnectionResult, String> {
-    let conn_str = build_connection_string(&host, port, &database, &username, &password, ssl);
+    let _tunnel: Option<SshTunnel>;
+    let (effective_host, effective_port) = if ssh_enabled.unwrap_or(false) {
+        let ssh_host_val = ssh_host.unwrap_or_default();
+        let ssh_port_val = ssh_port.unwrap_or(22) as u16;
+        let ssh_user_val = ssh_user.unwrap_or_default();
+        let ssh_password_val = ssh_password.unwrap_or_default();
+        let ssh_key_path_val = ssh_key_path.unwrap_or_default();
+        let use_key = ssh_use_key.unwrap_or(false);
+
+        let key_path = if use_key && !ssh_key_path_val.is_empty() {
+            Some(ssh_key_path_val.as_str())
+        } else {
+            None
+        };
+        let password_opt = if !ssh_password_val.is_empty() {
+            Some(ssh_password_val.as_str())
+        } else {
+            None
+        };
+
+        match SshTunnel::new(
+            &ssh_host_val,
+            ssh_port_val,
+            &ssh_user_val,
+            password_opt,
+            key_path,
+            &host,
+            port as u16,
+        )
+        .await
+        {
+            Ok(tunnel) => {
+                let local_port = tunnel.local_port;
+                _tunnel = Some(tunnel);
+                ("127.0.0.1".to_string(), local_port as i64)
+            }
+            Err(e) => {
+                return Ok(TestConnectionResult {
+                    success: false,
+                    message: format!("SSH tunnel failed: {}", e),
+                });
+            }
+        }
+    } else {
+        _tunnel = None;
+        (host, port)
+    };
+
+    let conn_str = build_connection_string(
+        &effective_host,
+        effective_port,
+        &database,
+        &username,
+        &password,
+        ssl,
+    );
 
     match PgPoolOptions::new()
         .max_connections(1)
