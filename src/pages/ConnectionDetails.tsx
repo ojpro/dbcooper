@@ -193,6 +193,10 @@ export function ConnectionDetails() {
   const [saveQueryName, setSaveQueryName] = useState("");
   const [showSaveDialog, setShowSaveDialog] = useState(false);
 
+  // Query delete confirmation state
+  const [queryToDelete, setQueryToDelete] = useState<SavedQuery | null>(null);
+  const [showQueryDeleteDialog, setShowQueryDeleteDialog] = useState(false);
+
   // AI generation
   const { generateSQL, generating, isConfigured: aiConfigured } = useAIGeneration();
 
@@ -662,12 +666,23 @@ export function ConnectionDetails() {
     }
   };
 
-  const handleDeleteQuery = async (queryId: number) => {
+  const handleDeleteQuery = (query: SavedQuery) => {
+    setQueryToDelete(query);
+    setShowQueryDeleteDialog(true);
+  };
+
+  const confirmDeleteQuery = async () => {
+    if (!queryToDelete) return;
+
     try {
-      await api.queries.delete(queryId);
-      setSavedQueries(savedQueries.filter((q) => q.id !== queryId));
+      await api.queries.delete(queryToDelete.id);
+      setSavedQueries(savedQueries.filter((q) => q.id !== queryToDelete.id));
+      setShowQueryDeleteDialog(false);
+      setQueryToDelete(null);
+      toast.success("Query deleted successfully");
     } catch (error) {
       console.error("Failed to delete query:", error);
+      toast.error("Failed to delete query");
     }
   };
 
@@ -1839,7 +1854,7 @@ export function ConnectionDetails() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => handleDeleteQuery(query.id)}
+                                onClick={() => handleDeleteQuery(query)}
                                 variant="destructive"
                               >
                                 Delete
@@ -1872,6 +1887,24 @@ export function ConnectionDetails() {
           {renderActiveTabContent()}
         </div>
       </SidebarInset>
+
+      {/* Query Delete Confirmation Dialog */}
+      <AlertDialog open={showQueryDeleteDialog} onOpenChange={setShowQueryDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Saved Query?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the saved query <span className="font-semibold">"{queryToDelete?.name}"</span>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteQuery}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }
