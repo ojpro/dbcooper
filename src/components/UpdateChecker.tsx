@@ -4,6 +4,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/tauri";
+import { toast } from "sonner";
 
 export function UpdateChecker() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -45,11 +46,30 @@ export function UpdateChecker() {
 
     try {
       setDownloading(true);
-      await updateRef.download();
+      let downloaded = 0;
+      let contentLength = 0;
+      
+      await updateRef.download((event) => {
+        switch (event.event) {
+          case 'Started':
+            contentLength = event.data.contentLength ?? 0;
+            console.log(`Download started, total size: ${contentLength}`);
+            break;
+          case 'Progress':
+            downloaded += event.data.chunkLength;
+            console.log(`Downloaded ${downloaded} of ${contentLength}`);
+            break;
+          case 'Finished':
+            console.log('Download finished');
+            break;
+        }
+      });
+      
       setReadyToInstall(true);
-      setDownloading(false);
     } catch (error) {
       console.error("Failed to download update:", error);
+      toast.error(`Failed to download update: ${error}`);
+    } finally {
       setDownloading(false);
     }
   };
@@ -62,6 +82,7 @@ export function UpdateChecker() {
       await relaunch();
     } catch (error) {
       console.error("Failed to install update:", error);
+      toast.error(`Failed to install update: ${error}`);
     }
   };
 
