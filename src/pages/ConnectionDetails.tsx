@@ -92,6 +92,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { SqlEditor } from "@/components/SqlEditor";
 import { TabBar } from "@/components/TabBar";
 import { useAIGeneration } from "@/hooks/useAIGeneration";
+import { RowEditSheet } from "@/components/RowEditSheet";
 
 // Header component that uses useSidebar for conditional padding
 function ContentHeader({ connection, navigate }: { connection: Connection; navigate: (path: string) => void }) {
@@ -199,6 +200,12 @@ export function ConnectionDetails() {
 
   // AI generation
   const { generateSQL, generating, isConfigured: aiConfigured } = useAIGeneration();
+
+  // Row edit state
+  const [rowEditSheetOpen, setRowEditSheetOpen] = useState(false);
+  const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null);
+  const [savingRow, setSavingRow] = useState(false);
+  const [deletingRow, setDeletingRow] = useState(false);
 
   const activeTab = useMemo(
     () => tabs.find((t) => t.id === activeTabId) || null,
@@ -332,7 +339,10 @@ export function ConnectionDetails() {
           schema,
           tableName
         );
-        updateTab<TableDataTab>(tab.id, { foreignKeys: (data.foreign_keys as ForeignKeyInfo[]) || [] });
+        updateTab<TableDataTab>(tab.id, {
+          foreignKeys: (data.foreign_keys as ForeignKeyInfo[]) || [],
+          columns: (data.columns as TableColumn[]) || [],
+        });
       } catch (error) {
         console.error("Failed to fetch foreign keys:", error);
       }
@@ -686,6 +696,106 @@ export function ConnectionDetails() {
     }
   };
 
+  // Row editing handlers
+  const handleRowClick = useCallback((row: Record<string, unknown>) => {
+    setEditingRow(row);
+    setRowEditSheetOpen(true);
+  }, []);
+
+  const handleSaveRow = useCallback(async (updates: Record<string, unknown>) => {
+    if (!connection || !activeTab || activeTab.type !== "table-data" || !editingRow) return;
+
+    const tab = activeTab as TableDataTab;
+    const [schema, tableName] = tab.tableName.split(".");
+
+    // Get primary key columns and values
+    const primaryKeyColumns = tab.columns
+      .filter((col) => col.primary_key)
+      .map((col) => col.name);
+    const primaryKeyValues = primaryKeyColumns.map((col) => editingRow[col]);
+
+    if (primaryKeyColumns.length === 0) {
+      toast.error("Cannot update row without primary key");
+      return;
+    }
+
+    setSavingRow(true);
+
+    try {
+      const result = await api.database.updateTableRow(
+        connection,
+        schema,
+        tableName,
+        primaryKeyColumns,
+        primaryKeyValues,
+        updates
+      );
+
+      if (result.error) {
+        toast.error("Failed to update row", { description: result.error });
+      } else {
+        toast.success("Row updated successfully");
+        setRowEditSheetOpen(false);
+        setEditingRow(null);
+        // Refresh table data
+        fetchTableData(tab);
+      }
+    } catch (error) {
+      console.error("Failed to update row:", error);
+      toast.error("Failed to update row", {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setSavingRow(false);
+    }
+  }, [connection, activeTab, editingRow, fetchTableData]);
+
+  const handleDeleteRow = useCallback(async () => {
+    if (!connection || !activeTab || activeTab.type !== "table-data" || !editingRow) return;
+
+    const tab = activeTab as TableDataTab;
+    const [schema, tableName] = tab.tableName.split(".");
+
+    // Get primary key columns and values
+    const primaryKeyColumns = tab.columns
+      .filter((col) => col.primary_key)
+      .map((col) => col.name);
+    const primaryKeyValues = primaryKeyColumns.map((col) => editingRow[col]);
+
+    if (primaryKeyColumns.length === 0) {
+      toast.error("Cannot delete row without primary key");
+      return;
+    }
+
+    setDeletingRow(true);
+
+    try {
+      const result = await api.database.deleteTableRow(
+        connection,
+        schema,
+        tableName,
+        primaryKeyColumns,
+        primaryKeyValues
+      );
+
+      if (result.error) {
+        toast.error("Failed to delete row", { description: result.error });
+      } else {
+        toast.success("Row deleted successfully");
+        setRowEditSheetOpen(false);
+        setEditingRow(null);
+        // Refresh table data
+        fetchTableData(tab);
+      }
+    } catch (error) {
+      console.error("Failed to delete row:", error);
+      toast.error("Failed to delete row", {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setDeletingRow(false);
+    }
+  }, [connection, activeTab, editingRow, fetchTableData]);
 
   // Memoized columns for table data
   const tableDataColumns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
@@ -864,6 +974,7 @@ export function ConnectionDetails() {
             pageCount={tableDataPageCount}
             currentPage={tab.currentPage}
             onPageChange={handlePageChange}
+            onRowClick={handleRowClick}
           />
         ) : (
           <p className="text-muted-foreground text-center py-8">
@@ -1907,6 +2018,24 @@ export function ConnectionDetails() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Row Edit Sheet */}
+      {activeTab && activeTab.type === "table-data" && (
+        <RowEditSheet
+          open={rowEditSheetOpen}
+          onOpenChange={(open) => {
+            setRowEditSheetOpen(open);
+            if (!open) setEditingRow(null);
+          }}
+          tableName={(activeTab as TableDataTab).tableName}
+          row={editingRow}
+          columns={(activeTab as TableDataTab).columns}
+          onSave={handleSaveRow}
+          onDelete={handleDeleteRow}
+          saving={savingRow}
+          deleting={deletingRow}
+        />
+      )}
     </SidebarProvider>
   );
 }

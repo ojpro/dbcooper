@@ -44,6 +44,7 @@ export interface TableDataTab extends BaseTab {
 	filterInput: string;
 	filter: string;
 	foreignKeys: ForeignKeyInfo[];
+	columns: TableColumn[];
 }
 
 export interface TableStructureTab extends BaseTab {
@@ -89,6 +90,7 @@ export function createTableDataTab(tableName: string): TableDataTab {
 		filterInput: "",
 		filter: "",
 		foreignKeys: [],
+		columns: [],
 	};
 }
 

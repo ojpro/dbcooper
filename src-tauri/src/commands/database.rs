@@ -149,6 +149,154 @@ pub async fn unified_execute_query(
 }
 
 // ============================================================================
+// Row editing commands (UPDATE/DELETE)
+// ============================================================================
+
+/// Update a row in a table
+#[tauri::command]
+pub async fn update_table_row(
+    db_type: String,
+    host: Option<String>,
+    port: Option<i64>,
+    database: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
+    ssl: Option<bool>,
+    file_path: Option<String>,
+    schema: String,
+    table: String,
+    primary_key_columns: Vec<String>,
+    primary_key_values: Vec<serde_json::Value>,
+    updates: serde_json::Map<String, serde_json::Value>,
+) -> Result<QueryResult, String> {
+    if primary_key_columns.is_empty() || primary_key_columns.len() != primary_key_values.len() {
+        return Err("Primary key columns and values must match".to_string());
+    }
+
+    if updates.is_empty() {
+        return Err("No updates provided".to_string());
+    }
+
+    let driver = create_driver(
+        &db_type, host, port, database, username, password, ssl, file_path,
+    )?;
+
+    // Build the UPDATE query
+    let table_ref = if db_type == "sqlite" || db_type == "sqlite3" {
+        format!("\"{}\"", table)
+    } else {
+        format!("\"{}\".\"{}\"", schema, table)
+    };
+
+    // Build SET clause
+    let set_parts: Vec<String> = updates
+        .iter()
+        .map(|(col, val)| {
+            let formatted_value = format_sql_value(val);
+            format!("\"{}\" = {}", col, formatted_value)
+        })
+        .collect();
+    let set_clause = set_parts.join(", ");
+
+    // Build WHERE clause for primary key
+    let where_parts: Vec<String> = primary_key_columns
+        .iter()
+        .zip(primary_key_values.iter())
+        .map(|(col, val)| {
+            let formatted_value = format_sql_value(val);
+            format!("\"{}\" = {}", col, formatted_value)
+        })
+        .collect();
+    let where_clause = where_parts.join(" AND ");
+
+    let query = format!(
+        "UPDATE {} SET {} WHERE {}",
+        table_ref, set_clause, where_clause
+    );
+
+    driver.execute_query(&query).await
+}
+
+/// Delete a row from a table
+#[tauri::command]
+pub async fn delete_table_row(
+    db_type: String,
+    host: Option<String>,
+    port: Option<i64>,
+    database: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
+    ssl: Option<bool>,
+    file_path: Option<String>,
+    schema: String,
+    table: String,
+    primary_key_columns: Vec<String>,
+    primary_key_values: Vec<serde_json::Value>,
+) -> Result<QueryResult, String> {
+    if primary_key_columns.is_empty() || primary_key_columns.len() != primary_key_values.len() {
+        return Err("Primary key columns and values must match".to_string());
+    }
+
+    let driver = create_driver(
+        &db_type, host, port, database, username, password, ssl, file_path,
+    )?;
+
+    // Build the DELETE query
+    let table_ref = if db_type == "sqlite" || db_type == "sqlite3" {
+        format!("\"{}\"", table)
+    } else {
+        format!("\"{}\".\"{}\"", schema, table)
+    };
+
+    // Build WHERE clause for primary key
+    let where_parts: Vec<String> = primary_key_columns
+        .iter()
+        .zip(primary_key_values.iter())
+        .map(|(col, val)| {
+            let formatted_value = format_sql_value(val);
+            format!("\"{}\" = {}", col, formatted_value)
+        })
+        .collect();
+    let where_clause = where_parts.join(" AND ");
+
+    let query = format!("DELETE FROM {} WHERE {}", table_ref, where_clause);
+
+    driver.execute_query(&query).await
+}
+
+/// Format a JSON value for SQL insertion
+fn format_sql_value(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::Null => "NULL".to_string(),
+        serde_json::Value::Bool(b) => {
+            if *b {
+                "TRUE".to_string()
+            } else {
+                "FALSE".to_string()
+            }
+        }
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::String(s) => {
+            // Escape single quotes by doubling them
+            let escaped = s.replace('\'', "''");
+            format!("'{}'", escaped)
+        }
+        serde_json::Value::Array(arr) => {
+            // For arrays, convert to JSON string
+            let json_str = serde_json::to_string(arr).unwrap_or_default();
+            let escaped = json_str.replace('\'', "''");
+            format!("'{}'", escaped)
+        }
+        serde_json::Value::Object(obj) => {
+            // For objects, convert to JSON string
+            let json_str = serde_json::to_string(obj).unwrap_or_default();
+            let escaped = json_str.replace('\'', "''");
+            format!("'{}'", escaped)
+        }
+    }
+}
+
+// ============================================================================
 // Redis-specific commands
 // ============================================================================
 
@@ -190,12 +338,23 @@ pub async fn redis_search_keys(
             &ssh_host_val,
             ssh_port_val,
             &ssh_user_val,
-            if ssh_password_val.is_empty() { None } else { Some(&ssh_password_val) },
-            if ssh_key_path_val.is_empty() { None } else { Some(&ssh_key_path_val) },
+            if ssh_password_val.is_empty() {
+                None
+            } else {
+                Some(&ssh_password_val)
+            },
+            if ssh_key_path_val.is_empty() {
+                None
+            } else {
+                Some(&ssh_key_path_val)
+            },
             ssh_use_key_val,
-        ).await?;
+        )
+        .await?;
 
-        driver.search_keys_with_tunnel(&tunnel, &pattern, limit).await
+        driver
+            .search_keys_with_tunnel(&tunnel, &pattern, limit)
+            .await
     } else {
         driver.search_keys(&pattern, limit).await
     }
@@ -238,10 +397,19 @@ pub async fn redis_get_key_details(
             &ssh_host_val,
             ssh_port_val,
             &ssh_user_val,
-            if ssh_password_val.is_empty() { None } else { Some(&ssh_password_val) },
-            if ssh_key_path_val.is_empty() { None } else { Some(&ssh_key_path_val) },
+            if ssh_password_val.is_empty() {
+                None
+            } else {
+                Some(&ssh_password_val)
+            },
+            if ssh_key_path_val.is_empty() {
+                None
+            } else {
+                Some(&ssh_key_path_val)
+            },
             ssh_use_key_val,
-        ).await?;
+        )
+        .await?;
 
         driver.get_key_details_with_tunnel(&tunnel, &key).await
     } else {

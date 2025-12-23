@@ -307,6 +307,52 @@ export const api = {
 				filePath: connection.file_path,
 				query,
 			}),
+
+		updateTableRow: (
+			connection: Connection,
+			schema: string,
+			table: string,
+			primaryKeyColumns: string[],
+			primaryKeyValues: unknown[],
+			updates: Record<string, unknown>,
+		) =>
+			invoke<QueryResult>("update_table_row", {
+				dbType: connection.db_type || "postgres",
+				host: connection.host,
+				port: connection.port,
+				database: connection.database,
+				username: connection.username,
+				password: connection.password,
+				ssl: connection.ssl === 1,
+				filePath: connection.file_path,
+				schema,
+				table,
+				primaryKeyColumns,
+				primaryKeyValues,
+				updates,
+			}),
+
+		deleteTableRow: (
+			connection: Connection,
+			schema: string,
+			table: string,
+			primaryKeyColumns: string[],
+			primaryKeyValues: unknown[],
+		) =>
+			invoke<QueryResult>("delete_table_row", {
+				dbType: connection.db_type || "postgres",
+				host: connection.host,
+				port: connection.port,
+				database: connection.database,
+				username: connection.username,
+				password: connection.password,
+				ssl: connection.ssl === 1,
+				filePath: connection.file_path,
+				schema,
+				table,
+				primaryKeyColumns,
+				primaryKeyValues,
+			}),
 	},
 
 	// Redis-specific API

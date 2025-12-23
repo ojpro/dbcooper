@@ -189,7 +189,17 @@ impl DatabaseDriver for PostgresDriver {
         let full_table_name = format!("\"{}\".\"{}\"", schema, table);
         let where_clause = filter
             .as_ref()
-            .map(|f| format!(" WHERE {}", f))
+            .map(|f| {
+                // Normalize curly/smart quotes to regular ASCII quotes
+                // macOS often auto-replaces straight quotes with smart quotes
+                let normalized = f
+                    .replace('\u{2018}', "'") // Left single quotation mark '
+                    .replace('\u{2019}', "'") // Right single quotation mark '
+                    .replace('\u{201C}', "\"") // Left double quotation mark "
+                    .replace('\u{201D}', "\"") // Right double quotation mark "
+                    .replace("\\'", "'"); // Backslash-escaped single quote
+                format!(" WHERE {}", normalized)
+            })
             .unwrap_or_default();
 
         let count_query = format!(

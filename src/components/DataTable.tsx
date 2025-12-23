@@ -13,6 +13,7 @@ interface DataTableProps<TData> {
   pageCount: number;
   currentPage: number;
   onPageChange: (page: number) => void;
+  onRowClick?: (row: TData) => void;
 }
 
 export function DataTable<TData>({
@@ -21,6 +22,7 @@ export function DataTable<TData>({
   pageCount,
   currentPage,
   onPageChange,
+  onRowClick,
 }: DataTableProps<TData>) {
   const [containerHeight, setContainerHeight] = useState<number>(400);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,9 +58,9 @@ export function DataTable<TData>({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
                   </th>
                 ))}
               </tr>
@@ -70,7 +72,8 @@ export function DataTable<TData>({
                 <tr
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors"
+                  className={`hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
+                  onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td
