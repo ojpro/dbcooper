@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 
 pub mod clickhouse;
+pub mod pool_manager;
 pub mod postgres;
 pub mod redis;
 pub mod sqlite;
@@ -63,6 +64,7 @@ pub struct RedisConfig {
     pub port: i64,
     pub password: Option<String>,
     pub db: Option<i64>,
+    pub tls: bool,
 }
 
 // Re-export ClickHouse config from its module

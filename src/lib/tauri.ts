@@ -441,4 +441,18 @@ export const api = {
 
 		getAll: () => invoke<Record<string, string>>("get_all_settings"),
 	},
+
+	pool: {
+		connect: (uuid: string) =>
+			invoke<{ status: string; error?: string }>("pool_connect", { uuid }),
+
+		disconnect: (uuid: string) =>
+			invoke<void>("pool_disconnect", { uuid }),
+
+		getStatus: (uuid: string) =>
+			invoke<{ status: string; error?: string }>("pool_get_status", { uuid }),
+
+		healthCheck: (uuid: string) =>
+			invoke<TestConnectionResult>("pool_health_check", { uuid }),
+	},
 };

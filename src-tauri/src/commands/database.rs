@@ -48,6 +48,7 @@ fn create_driver(
                 port: port.unwrap_or(6379),
                 password,
                 db: database.and_then(|d| d.parse().ok()),
+                tls: ssl.unwrap_or(false),
             };
             Ok(Box::new(RedisDriver::new(config)))
         }
@@ -336,6 +337,7 @@ pub async fn redis_search_keys(
         port,
         password,
         db,
+        tls: false,
     };
     let driver = RedisDriver::new(config.clone());
 
@@ -395,6 +397,7 @@ pub async fn redis_get_key_details(
         port,
         password,
         db,
+        tls: false,
     };
     let driver = RedisDriver::new(config.clone());
 
@@ -445,6 +448,7 @@ pub async fn redis_delete_key(
         port,
         password,
         db,
+        tls: false,
     };
     let driver = RedisDriver::new(config);
     driver.delete_key(&key).await
@@ -466,6 +470,7 @@ pub async fn redis_set_key(
         port,
         password,
         db,
+        tls: false,
     };
     let driver = RedisDriver::new(config);
     driver.set_key(&key, &value, ttl).await

@@ -359,19 +359,19 @@ export function ConnectionForm({ onSubmit, onCancel, isOpen, initialData }: Conn
                   </div>
                 </Field>
 
-                {/* Redis doesn't use SSL */}
-                {formData.type !== "redis" && (
-                  <Field orientation="horizontal">
-                    <input
-                      type="checkbox"
-                      id="connection-ssl"
-                      checked={formData.ssl}
-                      onChange={(e) => setFormData({ ...formData, ssl: e.target.checked })}
-                      className="rounded border-input"
-                    />
-                    <FieldLabel htmlFor="connection-ssl">Use SSL</FieldLabel>
-                  </Field>
-                )}
+                {/* SSL/TLS toggle - available for all server-based DBs */}
+                <Field orientation="horizontal">
+                  <input
+                    type="checkbox"
+                    id="connection-ssl"
+                    checked={formData.ssl}
+                    onChange={(e) => setFormData({ ...formData, ssl: e.target.checked })}
+                    className="rounded border-input"
+                  />
+                  <FieldLabel htmlFor="connection-ssl">
+                    {formData.type === "redis" ? "Use TLS" : "Use SSL"}
+                  </FieldLabel>
+                </Field>
 
                 {/* SSH Tunnel Section */}
                 <div className="border-t pt-4 mt-2">

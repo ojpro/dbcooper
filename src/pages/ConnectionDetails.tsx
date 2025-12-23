@@ -93,6 +93,7 @@ import { SqlEditor } from "@/components/SqlEditor";
 import { TabBar } from "@/components/TabBar";
 import { useAIGeneration } from "@/hooks/useAIGeneration";
 import { RowEditSheet } from "@/components/RowEditSheet";
+import { ConnectionStatus } from "@/components/ConnectionStatus";
 
 // Header component that uses useSidebar for conditional padding
 function ContentHeader({ connection, navigate }: { connection: Connection; navigate: (path: string) => void }) {
@@ -116,7 +117,8 @@ function ContentHeader({ connection, navigate }: { connection: Connection; navig
           Back
         </Button>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
+        <ConnectionStatus connectionUuid={connection.uuid} />
         <Badge variant="secondary" className="capitalize">
           {connection.type}
         </Badge>
@@ -150,7 +152,8 @@ function RedisContentHeader({ connection, navigate }: { connection: Connection; 
           {connection.host}:{connection.port}
         </span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
+        <ConnectionStatus connectionUuid={connection.uuid} />
         <Badge variant="secondary" className="capitalize">
           {connection.type}
         </Badge>

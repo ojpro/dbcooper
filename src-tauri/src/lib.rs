@@ -13,6 +13,7 @@ use commands::database::{
     unified_execute_query, unified_get_table_data, unified_get_table_structure,
     unified_list_tables, unified_test_connection, update_table_row,
 };
+use commands::pool::{pool_connect, pool_disconnect, pool_get_status, pool_health_check};
 use commands::postgres::{
     execute_query, get_table_data, get_table_structure, list_tables, test_connection,
 };
@@ -20,6 +21,7 @@ use commands::queries::{
     create_saved_query, delete_saved_query, get_saved_queries, update_saved_query,
 };
 use commands::settings::{get_all_settings, get_setting, set_setting};
+use database::pool_manager::PoolManager;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -38,6 +40,10 @@ pub fn run() {
                 .block_on(db::init_pool())
                 .expect("Failed to initialize database");
             app.manage(pool);
+
+            // Initialize connection pool manager
+            app.manage(PoolManager::new());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -70,6 +76,10 @@ pub fn run() {
             set_setting,
             get_all_settings,
             generate_sql,
+            pool_connect,
+            pool_disconnect,
+            pool_get_status,
+            pool_health_check,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

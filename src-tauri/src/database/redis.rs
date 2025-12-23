@@ -55,22 +55,30 @@ impl RedisDriver {
         }
 
         let db = self.config.db.unwrap_or(0);
+        let scheme = if self.config.tls { "rediss" } else { "redis" };
 
         format!(
-            "redis://{}{}:{}/{}",
-            auth, self.config.host, self.config.port, db
+            "{}://{}{}:{}/{}",
+            scheme, auth, self.config.host, self.config.port, db
         )
     }
 
-    /// Create a Redis client connection
+    /// Create a Redis client connection with timeout
     async fn get_connection(&self) -> Result<redis::aio::MultiplexedConnection, String> {
         let client = redis::Client::open(self.build_connection_string())
             .map_err(|e| format!("Failed to create Redis client: {}", e))?;
 
-        client
-            .get_multiplexed_async_connection()
-            .await
-            .map_err(|e| format!("Failed to connect to Redis: {}", e))
+        // Use a 10 second timeout for connection
+        match tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            client.get_multiplexed_async_connection(),
+        )
+        .await
+        {
+            Ok(Ok(conn)) => Ok(conn),
+            Ok(Err(e)) => Err(format!("Failed to connect to Redis: {}", e)),
+            Err(_) => Err("Connection timed out after 10 seconds".to_string()),
+        }
     }
 
     /// Get connection string for SSH tunnel
@@ -83,8 +91,9 @@ impl RedisDriver {
         }
 
         let db = self.config.db.unwrap_or(0);
+        let scheme = if self.config.tls { "rediss" } else { "redis" };
 
-        format!("redis://{}{}:{}/{}", auth, host, port, db)
+        format!("{}://{}{}:{}/{}", scheme, auth, host, port, db)
     }
 
     /// Create connection with SSH tunnel support
