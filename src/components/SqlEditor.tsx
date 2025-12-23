@@ -147,12 +147,12 @@ export function SqlEditor({
                 >
                   {generating ? (
                     <>
-                      <Spinner className="mr-2 h-4 w-4" />
+                      <Spinner className="h-4 w-4" />
                       Generating...
                     </>
                   ) : (
                     <>
-                      <Sparkle className="mr-2 h-4 w-4" />
+                      <Sparkle className="h-4 w-4" />
                       Generate
                     </>
                   )}
