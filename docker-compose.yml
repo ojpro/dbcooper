@@ -28,7 +28,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: dbindex-clickhouse
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_DB: default
+    ports:
+      - "8123:8123" # HTTP interface
+      - "9000:9000" # Native TCP interface
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: [ "CMD", "clickhouse-client", "--query", "SELECT 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
   redis_data:
+  clickhouse_data:

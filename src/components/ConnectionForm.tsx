@@ -39,7 +39,7 @@ const databaseTypes: { value: ConnectionType; label: string; disabled: boolean; 
   { value: "postgres", label: "PostgreSQL", disabled: false, icon: <PostgresqlIcon className="w-4 h-4" /> },
   { value: "sqlite", label: "SQLite", disabled: false, icon: <SqliteIcon className="w-4 h-4" /> },
   { value: "redis", label: "Redis", disabled: false, icon: <RedisIcon className="w-4 h-4" /> },
-  { value: "clickhouse", label: "ClickHouse (Coming Soon)", disabled: true, icon: <ClickhouseIcon className="w-4 h-4" /> },
+  { value: "clickhouse", label: "ClickHouse", disabled: false, icon: <ClickhouseIcon className="w-4 h-4" /> },
 ];
 
 const defaultPorts: Record<ConnectionType, number> = {
@@ -116,46 +116,46 @@ export function ConnectionForm({ onSubmit, onCancel, isOpen, initialData }: Conn
   const handleTestConnection = async () => {
     setIsTesting(true);
     try {
-      // Use unified test connection for Redis and SQLite, postgres test for Postgres
-      const result = formData.type === "redis" || formData.type === "sqlite"
+      // Use unified test connection for Redis, SQLite, and ClickHouse; postgres test for Postgres
+      const result = formData.type === "redis" || formData.type === "sqlite" || formData.type === "clickhouse"
         ? await api.database.testConnection({
-            id: 0,
-            uuid: "",
-            type: formData.type,
-            name: formData.name,
-            host: formData.host,
-            port: formData.port,
-            database: formData.database,
-            username: formData.username,
-            password: formData.password,
-            ssl: formData.ssl ? 1 : 0,
-            db_type: formData.db_type,
-            file_path: formData.file_path || null,
-            ssh_enabled: formData.ssh_enabled ? 1 : 0,
-            ssh_host: formData.ssh_host || "",
-            ssh_port: formData.ssh_port || 22,
-            ssh_user: formData.ssh_user || "",
-            ssh_password: formData.ssh_password || "",
-            ssh_key_path: formData.ssh_key_path || "",
-            ssh_use_key: formData.ssh_use_key ? 1 : 0,
-            created_at: "",
-            updated_at: "",
-          })
+          id: 0,
+          uuid: "",
+          type: formData.type,
+          name: formData.name,
+          host: formData.host,
+          port: formData.port,
+          database: formData.database,
+          username: formData.username,
+          password: formData.password,
+          ssl: formData.ssl ? 1 : 0,
+          db_type: formData.db_type,
+          file_path: formData.file_path || null,
+          ssh_enabled: formData.ssh_enabled ? 1 : 0,
+          ssh_host: formData.ssh_host || "",
+          ssh_port: formData.ssh_port || 22,
+          ssh_user: formData.ssh_user || "",
+          ssh_password: formData.ssh_password || "",
+          ssh_key_path: formData.ssh_key_path || "",
+          ssh_use_key: formData.ssh_use_key ? 1 : 0,
+          created_at: "",
+          updated_at: "",
+        })
         : await api.postgres.testConnection({
-            host: formData.host,
-            port: formData.port,
-            database: formData.database,
-            username: formData.username,
-            password: formData.password,
-            ssl: formData.ssl,
-            ssh_enabled: formData.ssh_enabled,
-            ssh_host: formData.ssh_host,
-            ssh_port: formData.ssh_port,
-            ssh_user: formData.ssh_user,
-            ssh_password: formData.ssh_password,
-            ssh_key_path: formData.ssh_key_path,
-            ssh_use_key: formData.ssh_use_key,
-          });
+          host: formData.host,
+          port: formData.port,
+          database: formData.database,
+          username: formData.username,
+          password: formData.password,
+          ssl: formData.ssl,
+          ssh_enabled: formData.ssh_enabled,
+          ssh_host: formData.ssh_host,
+          ssh_port: formData.ssh_port,
+          ssh_user: formData.ssh_user,
+          ssh_password: formData.ssh_password,
+          ssh_key_path: formData.ssh_key_path,
+          ssh_use_key: formData.ssh_use_key,
+        });
 
       if (result.success) {
         toast.success(result.message || "Connection successful!");

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 
+pub mod clickhouse;
 pub mod postgres;
 pub mod redis;
 pub mod sqlite;
@@ -64,6 +65,9 @@ pub struct RedisConfig {
     pub db: Option<i64>,
 }
 
+// Re-export ClickHouse config from its module
+pub use clickhouse::{ClickhouseConfig, ClickhouseProtocol};
+
 /// Database type enum for dispatching
 #[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq)]
@@ -71,6 +75,7 @@ pub enum DatabaseType {
     Postgres,
     Sqlite,
     Redis,
+    Clickhouse,
 }
 
 impl DatabaseType {
@@ -80,6 +85,7 @@ impl DatabaseType {
             "postgres" | "postgresql" => Some(DatabaseType::Postgres),
             "sqlite" | "sqlite3" => Some(DatabaseType::Sqlite),
             "redis" => Some(DatabaseType::Redis),
+            "clickhouse" => Some(DatabaseType::Clickhouse),
             _ => None,
         }
     }

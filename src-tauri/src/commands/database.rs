@@ -1,16 +1,18 @@
 //! Unified database commands that dispatch to the correct driver based on db_type.
 //!
 //! This module provides a single set of Tauri commands that work with PostgreSQL,
-//! SQLite, and Redis databases by dispatching to the appropriate driver.
+//! SQLite, Redis, and ClickHouse databases by dispatching to the appropriate driver.
 
+use crate::database::clickhouse::ClickhouseDriver;
 use crate::database::postgres::PostgresDriver;
 use crate::database::redis::{RedisDriver, RedisKeyDetails, RedisKeyListResponse};
 use crate::database::sqlite::SqliteDriver;
-use crate::database::{DatabaseDriver, PostgresConfig, RedisConfig, SqliteConfig};
+use crate::database::{
+    ClickhouseConfig, ClickhouseProtocol, DatabaseDriver, PostgresConfig, RedisConfig, SqliteConfig,
+};
 use crate::db::models::{
     QueryResult, TableDataResponse, TableInfo, TableStructure, TestConnectionResult,
 };
-use crate::ssh_tunnel::SshTunnel;
 
 /// Creates the appropriate database driver based on the db_type
 fn create_driver(
@@ -48,6 +50,18 @@ fn create_driver(
                 db: database.and_then(|d| d.parse().ok()),
             };
             Ok(Box::new(RedisDriver::new(config)))
+        }
+        "clickhouse" => {
+            let config = ClickhouseConfig {
+                host: host.unwrap_or_else(|| "localhost".to_string()),
+                port: port.unwrap_or(8123), // Default to HTTP port
+                database: database.unwrap_or_else(|| "default".to_string()),
+                username: username.unwrap_or_else(|| "default".to_string()),
+                password: password.unwrap_or_default(),
+                protocol: ClickhouseProtocol::Http,
+                ssl: ssl.unwrap_or(false),
+            };
+            Ok(Box::new(ClickhouseDriver::new(config)))
         }
         _ => Err(format!("Unsupported database type: {}", db_type)),
     }
