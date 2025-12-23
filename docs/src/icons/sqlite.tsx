@@ -1,6 +1,6 @@
-import type { SVGProps } from "react";
+import React from "react";
 
-export const SqliteIcon = (props: SVGProps<SVGSVGElement>) => (
+export const SqliteIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" {...props}>
         <defs>
             <linearGradient id="sqlite-original-a" x1="-15.615" x2="-6.741" y1="-9.108" y2="-9.108" gradientTransform="rotate(90 -90.486 64.634) scale(9.2712)" gradientUnits="userSpaceOnUse">
