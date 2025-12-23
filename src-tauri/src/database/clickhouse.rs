@@ -269,6 +269,7 @@ impl DatabaseDriver for ClickhouseDriver {
     }
 
     async fn execute_query(&self, query: &str) -> Result<QueryResult, String> {
+        let start_time = std::time::Instant::now();
         // Check if it's a SELECT query
         let trimmed = query.trim().to_uppercase();
         let is_select = trimmed.starts_with("SELECT")
@@ -284,12 +285,14 @@ impl DatabaseDriver for ClickhouseDriver {
                         data: rows,
                         row_count,
                         error: None,
+                        time_taken_ms: Some(start_time.elapsed().as_millis()),
                     })
                 }
                 Err(e) => Ok(QueryResult {
                     data: vec![],
                     row_count: 0,
                     error: Some(e),
+                    time_taken_ms: Some(start_time.elapsed().as_millis()),
                 }),
             }
         } else {
@@ -299,11 +302,13 @@ impl DatabaseDriver for ClickhouseDriver {
                     data: vec![json!({"result": "Query executed successfully"})],
                     row_count: 0,
                     error: None,
+                    time_taken_ms: Some(start_time.elapsed().as_millis()),
                 }),
                 Err(e) => Ok(QueryResult {
                     data: vec![],
                     row_count: 0,
                     error: Some(e),
+                    time_taken_ms: Some(start_time.elapsed().as_millis()),
                 }),
             }
         }

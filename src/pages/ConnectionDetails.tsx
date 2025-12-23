@@ -192,6 +192,7 @@ export function ConnectionDetails() {
   const [redisSheetOpen, setRedisSheetOpen] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [redisSearchTime, setRedisSearchTime] = useState<number | null>(null);
 
   // Save dialog state (for query tabs)
   const [saveQueryName, setSaveQueryName] = useState("");
@@ -585,13 +586,11 @@ export function ConnectionDetails() {
       executionTime: null,
     });
 
-    const startTime = performance.now();
-
     try {
       const result = await api.database.executeQuery(connection, tab.query);
 
-      const endTime = performance.now();
-      const executionTime = Math.round(endTime - startTime);
+      // Use backend timing if available, otherwise use 0
+      const executionTime = result.time_taken_ms ?? 0;
 
       if (result.error) {
         updateTab<QueryTab>(tab.id, {
@@ -609,12 +608,9 @@ export function ConnectionDetails() {
         executing: false,
       });
     } catch (error) {
-      const endTime = performance.now();
-      const executionTime = Math.round(endTime - startTime);
-
       updateTab<QueryTab>(tab.id, {
         error: error instanceof Error ? error.message : "Failed to execute query",
-        executionTime,
+        executionTime: null,
         executing: false,
       });
     }
@@ -1446,10 +1442,12 @@ export function ConnectionDetails() {
     setLoadingRedisKeys(true);
     setRedisSelectedKey(null);
     setRedisKeyDetails(null);
+    setRedisSearchTime(null);
 
     try {
       const result = await api.redis.searchKeys(connection, redisPattern, 100);
       setRedisKeys(result.keys);
+      setRedisSearchTime(result.time_taken_ms ?? null);
     } catch (error) {
       console.error("Failed to search Redis keys:", error);
       toast.error("Failed to search keys");
@@ -1530,6 +1528,9 @@ export function ConnectionDetails() {
           {redisKeys !== null && (
             <div className="mt-2 text-sm text-muted-foreground">
               Found {redisKeys.length} key{redisKeys.length !== 1 ? "s" : ""}
+              {redisSearchTime !== null && (
+                <span className="ml-2">• {redisSearchTime}ms</span>
+              )}
             </div>
           )}
         </CardContent>

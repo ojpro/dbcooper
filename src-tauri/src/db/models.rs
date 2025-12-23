@@ -138,6 +138,8 @@ pub struct QueryResult {
     pub row_count: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time_taken_ms: Option<u128>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

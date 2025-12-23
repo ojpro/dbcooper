@@ -90,6 +90,7 @@ export interface QueryResult {
 	data: Record<string, unknown>[];
 	row_count: number;
 	error?: string;
+	time_taken_ms?: number;
 }
 
 export interface TestConnectionResult {
@@ -122,6 +123,7 @@ export interface RedisKeyInfo {
 export interface RedisKeyListResponse {
 	keys: RedisKeyInfo[];
 	total: number;
+	time_taken_ms?: number;
 }
 
 export interface RedisKeyDetails {

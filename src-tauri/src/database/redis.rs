@@ -34,6 +34,7 @@ pub struct RedisKeyDetails {
 pub struct RedisKeyListResponse {
     pub keys: Vec<RedisKeyInfo>,
     pub total: i64,
+    pub time_taken_ms: Option<u128>,
 }
 
 pub struct RedisDriver {
@@ -218,6 +219,7 @@ impl DatabaseDriver for RedisDriver {
 
     async fn execute_query(&self, query: &str) -> Result<QueryResult, String> {
         // For Redis, this is primarily for INFO and other commands
+        let start_time = std::time::Instant::now();
         let mut conn = self.get_connection().await?;
 
         let trimmed_query = query.trim();
@@ -234,6 +236,7 @@ impl DatabaseDriver for RedisDriver {
                 data: vec![json!({"info": info})],
                 row_count: 1,
                 error: None,
+                time_taken_ms: Some(start_time.elapsed().as_millis()),
             });
         }
 
@@ -244,6 +247,7 @@ impl DatabaseDriver for RedisDriver {
                 data: vec![],
                 row_count: 0,
                 error: Some("Empty query".to_string()),
+                time_taken_ms: Some(start_time.elapsed().as_millis()),
             });
         }
 
@@ -259,30 +263,54 @@ impl DatabaseDriver for RedisDriver {
                     data: vec![json_value],
                     row_count: 1,
                     error: None,
+                    time_taken_ms: Some(start_time.elapsed().as_millis()),
                 })
             }
             Err(e) => Ok(QueryResult {
                 data: vec![],
                 row_count: 0,
                 error: Some(format!("Redis command failed: {}", e)),
+                time_taken_ms: Some(start_time.elapsed().as_millis()),
             }),
         }
     }
 }
 
 impl RedisDriver {
-    /// Search for keys matching a pattern
+    /// Search for keys matching a pattern using SCAN (non-blocking)
     pub async fn search_keys(
         &self,
         pattern: &str,
         limit: i64,
     ) -> Result<RedisKeyListResponse, String> {
+        let start_time = std::time::Instant::now();
         let mut conn = self.get_connection().await?;
 
-        let keys: Vec<String> = conn
-            .keys(pattern)
-            .await
-            .map_err(|e| format!("Failed to search keys: {}", e))?;
+        // Use SCAN instead of KEYS for better performance on large keyspaces
+        // SCAN is non-blocking and iterates incrementally
+        let mut keys: Vec<String> = Vec::new();
+        let mut cursor: u64 = 0;
+        let count_per_scan = 100; // Number of keys to scan per iteration
+
+        loop {
+            let (new_cursor, batch): (u64, Vec<String>) = redis::cmd("SCAN")
+                .arg(cursor)
+                .arg("MATCH")
+                .arg(pattern)
+                .arg("COUNT")
+                .arg(count_per_scan)
+                .query_async(&mut conn)
+                .await
+                .map_err(|e| format!("Failed to scan keys: {}", e))?;
+
+            keys.extend(batch);
+            cursor = new_cursor;
+
+            // Stop if we've reached the limit or completed the scan
+            if cursor == 0 || keys.len() >= limit as usize {
+                break;
+            }
+        }
 
         // Apply limit
         let limited_keys: Vec<_> = keys.into_iter().take(limit as usize).collect();
@@ -325,6 +353,7 @@ impl RedisDriver {
         Ok(RedisKeyListResponse {
             total: key_infos.len() as i64,
             keys: key_infos,
+            time_taken_ms: Some(start_time.elapsed().as_millis()),
         })
     }
 
@@ -495,13 +524,14 @@ impl RedisDriver {
         Ok((driver, tunnel))
     }
 
-    /// Search keys through SSH tunnel
+    /// Search keys through SSH tunnel using SCAN (non-blocking)
     pub async fn search_keys_with_tunnel(
         &self,
         tunnel: &SshTunnel,
         pattern: &str,
         limit: i64,
     ) -> Result<RedisKeyListResponse, String> {
+        let start_time = std::time::Instant::now();
         let conn_str = self.build_connection_string_with_host("127.0.0.1", tunnel.local_port);
 
         let client = redis::Client::open(conn_str)
@@ -512,10 +542,29 @@ impl RedisDriver {
             .await
             .map_err(|e| format!("Failed to connect to Redis: {}", e))?;
 
-        let keys: Vec<String> = conn
-            .keys(pattern)
-            .await
-            .map_err(|e| format!("Failed to search keys: {}", e))?;
+        // Use SCAN instead of KEYS for better performance on large keyspaces
+        let mut keys: Vec<String> = Vec::new();
+        let mut cursor: u64 = 0;
+        let count_per_scan = 100;
+
+        loop {
+            let (new_cursor, batch): (u64, Vec<String>) = redis::cmd("SCAN")
+                .arg(cursor)
+                .arg("MATCH")
+                .arg(pattern)
+                .arg("COUNT")
+                .arg(count_per_scan)
+                .query_async(&mut conn)
+                .await
+                .map_err(|e| format!("Failed to scan keys: {}", e))?;
+
+            keys.extend(batch);
+            cursor = new_cursor;
+
+            if cursor == 0 || keys.len() >= limit as usize {
+                break;
+            }
+        }
 
         let limited_keys: Vec<_> = keys.into_iter().take(limit as usize).collect();
 
@@ -553,6 +602,7 @@ impl RedisDriver {
         Ok(RedisKeyListResponse {
             total: key_infos.len() as i64,
             keys: key_infos,
+            time_taken_ms: Some(start_time.elapsed().as_millis()),
         })
     }
 

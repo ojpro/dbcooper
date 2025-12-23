@@ -353,6 +353,7 @@ impl DatabaseDriver for PostgresDriver {
     }
 
     async fn execute_query(&self, query: &str) -> Result<QueryResult, String> {
+        let start_time = std::time::Instant::now();
         let pool = self.get_pool().await?;
 
         match sqlx::query(query).fetch_all(&pool).await {
@@ -364,6 +365,7 @@ impl DatabaseDriver for PostgresDriver {
                     data,
                     row_count,
                     error: None,
+                    time_taken_ms: Some(start_time.elapsed().as_millis()),
                 })
             }
             Err(e) => {
@@ -372,6 +374,7 @@ impl DatabaseDriver for PostgresDriver {
                     data: vec![],
                     row_count: 0,
                     error: Some(e.to_string()),
+                    time_taken_ms: Some(start_time.elapsed().as_millis()),
                 })
             }
         }

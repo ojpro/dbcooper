@@ -444,6 +444,7 @@ pub async fn execute_query(
     ssl: bool,
     query: String,
 ) -> Result<QueryResult, String> {
+    let start_time = std::time::Instant::now();
     let conn_str = build_connection_string(&host, port, &database, &username, &password, ssl);
 
     let pool = PgPoolOptions::new()
@@ -533,6 +534,7 @@ pub async fn execute_query(
                 data,
                 row_count,
                 error: None,
+                time_taken_ms: Some(start_time.elapsed().as_millis()),
             })
         }
         Err(e) => {
@@ -541,6 +543,7 @@ pub async fn execute_query(
                 data: vec![],
                 row_count: 0,
                 error: Some(e.to_string()),
+                time_taken_ms: Some(start_time.elapsed().as_millis()),
             })
         }
     }
