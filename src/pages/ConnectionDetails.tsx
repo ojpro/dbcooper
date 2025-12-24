@@ -85,6 +85,7 @@ import {
   Database,
   CaretRight,
   Columns,
+  DownloadSimple,
 } from "@phosphor-icons/react";
 import { Check, Copy } from "@phosphor-icons/react";
 import { DataTable } from "@/components/DataTable";
@@ -1428,25 +1429,88 @@ export function ConnectionDetails() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Query Results</CardTitle>
-          <CardDescription>
-            {tab.results !== null &&
-              tab.results.length > 0 &&
-              `Returned ${tab.results.length} row${tab.results.length !== 1 ? "s" : ""
-              }`}
-            {tab.results !== null &&
-              tab.results.length === 0 &&
-              tab.success &&
-              "Query executed successfully - no rows returned"}
-            {tab.error && (
-              <span className="text-destructive">Error: {tab.error}</span>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Query Results</CardTitle>
+              <CardDescription>
+                {tab.results !== null &&
+                  tab.results.length > 0 &&
+                  `Returned ${tab.results.length} row${tab.results.length !== 1 ? "s" : ""
+                  }`}
+                {tab.results !== null &&
+                  tab.results.length === 0 &&
+                  tab.success &&
+                  "Query executed successfully - no rows returned"}
+                {tab.error && (
+                  <span className="text-destructive">Error: {tab.error}</span>
+                )}
+                {tab.executionTime !== null && (
+                  <span className="ml-2 text-muted-foreground">
+                    • Executed in {tab.executionTime}ms
+                  </span>
+                )}
+              </CardDescription>
+            </div>
+            {tab.results && tab.results.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (!tab.results || tab.results.length === 0) return;
+
+                  const { save } = await import("@tauri-apps/plugin-dialog");
+                  const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+                  const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+
+                  const defaultName = `query_results_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, "")}.csv`;
+
+                  const filePath = await save({
+                    defaultPath: defaultName,
+                    filters: [{ name: "CSV", extensions: ["csv"] }],
+                  });
+
+                  if (!filePath) return;
+
+                  const headers = Object.keys(tab.results[0]);
+                  const csvContent = [
+                    headers.join(","),
+                    ...tab.results.map((row) =>
+                      headers
+                        .map((header) => {
+                          const value = row[header];
+                          if (value === null || value === undefined) return "";
+                          const stringValue = typeof value === "object"
+                            ? JSON.stringify(value)
+                            : String(value);
+                          if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
+                            return `"${stringValue.replace(/"/g, '""')}"`;
+                          }
+                          return stringValue;
+                        })
+                        .join(",")
+                    ),
+                  ].join("\n");
+
+                  try {
+                    await writeTextFile(filePath, csvContent);
+                    toast.success("CSV saved successfully", {
+                      action: {
+                        label: "Show in Finder",
+                        onClick: () => revealItemInDir(filePath),
+                      },
+                    });
+                  } catch (error) {
+                    toast.error("Failed to save CSV", {
+                      description: error instanceof Error ? error.message : String(error),
+                    });
+                  }
+                }}
+              >
+                <DownloadSimple className="w-4 h-4 mr-2" />
+                Download CSV
+              </Button>
             )}
-            {tab.executionTime !== null && (
-              <span className="ml-2 text-muted-foreground">
-                • Executed in {tab.executionTime}ms
-              </span>
-            )}
-          </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           {tab.executing ? (
