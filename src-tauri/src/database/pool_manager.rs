@@ -398,4 +398,17 @@ impl PoolManager {
             .ok_or_else(|| "Connection not found. Please connect first.".to_string())?;
         driver.execute_query(query).await
     }
+
+    /// Get schema overview using the pooled connection
+    pub async fn get_schema_overview(
+        &self,
+        uuid: &str,
+    ) -> Result<crate::db::models::SchemaOverview, String> {
+        let driver = self
+            .get_cached(uuid)
+            .await
+            .ok_or_else(|| "Connection not found. Please connect first.".to_string())?;
+
+        driver.get_schema_overview().await
+    }
 }

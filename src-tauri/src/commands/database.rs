@@ -11,7 +11,8 @@ use crate::database::{
     ClickhouseConfig, ClickhouseProtocol, DatabaseDriver, PostgresConfig, RedisConfig, SqliteConfig,
 };
 use crate::db::models::{
-    QueryResult, TableDataResponse, TableInfo, TableStructure, TestConnectionResult,
+    QueryResult, SchemaOverview, TableDataResponse, TableInfo, TableStructure,
+    TestConnectionResult,
 };
 use crate::ssh_tunnel::SshTunnel;
 
@@ -602,4 +603,45 @@ pub async fn redis_set_key(
     };
     let driver = RedisDriver::new(config);
     driver.set_key(&key, &value, ttl).await
+}
+
+/// Get schema overview with all tables and their structures
+#[tauri::command(rename_all = "snake_case")]
+pub async fn unified_get_schema_overview(
+    db_type: String,
+    host: Option<String>,
+    port: Option<i64>,
+    database: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
+    ssl: Option<bool>,
+    file_path: Option<String>,
+    ssh_enabled: Option<bool>,
+    ssh_host: Option<String>,
+    ssh_port: Option<i64>,
+    ssh_user: Option<String>,
+    ssh_password: Option<String>,
+    ssh_key_path: Option<String>,
+    ssh_use_key: Option<bool>,
+) -> Result<SchemaOverview, String> {
+    let (driver, _tunnel) = create_driver_with_ssh(
+        &db_type,
+        host,
+        port,
+        database,
+        username,
+        password,
+        ssl,
+        file_path,
+        ssh_enabled,
+        ssh_host,
+        ssh_port,
+        ssh_user,
+        ssh_password,
+        ssh_key_path,
+        ssh_use_key,
+    )
+    .await?;
+
+    driver.get_schema_overview().await
 }

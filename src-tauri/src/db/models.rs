@@ -153,3 +153,19 @@ pub struct Setting {
     pub key: String,
     pub value: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TableWithStructure {
+    pub schema: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub table_type: String,
+    pub columns: Vec<ColumnInfo>,
+    pub foreign_keys: Vec<ForeignKeyInfo>,
+    pub indexes: Vec<IndexInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchemaOverview {
+    pub tables: Vec<TableWithStructure>,
+}

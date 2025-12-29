@@ -1,7 +1,7 @@
 import type { TableDataResponse } from "./tableData";
 import type { RedisKeyInfo, RedisKeyDetails } from "@/lib/tauri";
 
-export type TabType = "table-data" | "table-structure" | "query" | "redis-query";
+export type TabType = "table-data" | "table-structure" | "query" | "redis-query" | "schema-visualizer";
 
 export interface TableColumn {
 	name: string;
@@ -27,6 +27,13 @@ export interface ForeignKeyInfo {
 	column: string;
 	references_table: string;
 	references_column: string;
+}
+
+export interface IndexInfo {
+	name: string;
+	columns: string[];
+	unique: boolean;
+	primary: boolean;
 }
 
 interface BaseTab {
@@ -76,7 +83,26 @@ export interface RedisQueryTab extends BaseTab {
 	loadingDetails: boolean;
 }
 
-export type Tab = TableDataTab | TableStructureTab | QueryTab | RedisQueryTab;
+export interface SchemaVisualizerTab extends BaseTab {
+	type: "schema-visualizer";
+	schemaOverview: SchemaOverview | null;
+	loading: boolean;
+}
+
+export interface SchemaOverview {
+	tables: TableWithStructure[];
+}
+
+export interface TableWithStructure {
+	schema: string;
+	name: string;
+	type: string;
+	columns: TableColumn[];
+	foreign_keys: ForeignKeyInfo[];
+	indexes: IndexInfo[];
+}
+
+export type Tab = TableDataTab | TableStructureTab | QueryTab | RedisQueryTab | SchemaVisualizerTab;
 
 export function createTableDataTab(tableName: string): TableDataTab {
 	return {
@@ -136,5 +162,15 @@ export function createRedisQueryTab(pattern: string = "*"): RedisQueryTab {
 		keyDetails: null,
 		loadingKeys: false,
 		loadingDetails: false,
+	};
+}
+
+export function createSchemaVisualizerTab(): SchemaVisualizerTab {
+	return {
+		id: `schema-visualizer-${Date.now()}`,
+		type: "schema-visualizer",
+		title: "Schema Visualizer",
+		schemaOverview: null,
+		loading: false,
 	};
 }
