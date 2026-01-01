@@ -98,8 +98,9 @@ import {
 	Graph,
 	X,
 	PlayCircle,
+	Check,
+	Copy,
 } from "@phosphor-icons/react";
-import { Check, Copy } from "@phosphor-icons/react";
 import { DataTable } from "@/components/DataTable";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Spinner } from "@/components/ui/spinner";
@@ -129,11 +130,13 @@ function ContentHeader({
 	navigate,
 	connectionStatus,
 	onReconnect,
+	onStatusChange,
 }: {
 	connection: Connection;
 	navigate: (path: string) => void;
 	connectionStatus: "connected" | "disconnected";
 	onReconnect: () => Promise<void>;
+	onStatusChange: (status: "connected" | "disconnected") => void;
 }) {
 	const { state } = useSidebar();
 	const isCollapsed = state === "collapsed";
@@ -162,6 +165,7 @@ function ContentHeader({
 					connectionUuid={connection.uuid}
 					initialStatus={connectionStatus}
 					onReconnect={onReconnect}
+					onStatusChange={onStatusChange}
 				/>
 				<Badge variant="secondary" className="capitalize">
 					{connection.type}
@@ -180,11 +184,13 @@ function RedisContentHeader({
 	navigate,
 	connectionStatus,
 	onReconnect,
+	onStatusChange,
 }: {
 	connection: Connection;
 	navigate: (path: string) => void;
 	connectionStatus: "connected" | "disconnected";
 	onReconnect: () => Promise<void>;
+	onStatusChange: (status: "connected" | "disconnected") => void;
 }) {
 	return (
 		<header
@@ -211,6 +217,7 @@ function RedisContentHeader({
 					connectionUuid={connection.uuid}
 					initialStatus={connectionStatus}
 					onReconnect={onReconnect}
+					onStatusChange={onStatusChange}
 				/>
 				<Badge variant="secondary" className="capitalize">
 					{connection.type}
@@ -419,15 +426,40 @@ export function ConnectionDetails() {
 					// Don't set connectionStatus here as we haven't actually tested the connection yet
 					setLoadingPhase("complete");
 				} else {
-					// For other DBs, load schema (which also establishes connection)
-					setLoadingPhase("loading-schema");
-					await fetchSchemaOverviewData();
-					setLoadingPhase("complete");
+					// For other DBs, explicitly test connection first
+					try {
+						const connectResult = await api.pool.connect(uuid!);
+
+						if (connectResult.status === "connected") {
+							setConnectionStatus("connected");
+							// Connection successful, now load schema
+							setLoadingPhase("loading-schema");
+							await fetchSchemaOverviewData();
+						} else {
+							// Connection failed
+							setConnectionStatus("disconnected");
+							const errorMessage = connectResult.error || "Connection failed";
+							toast.error("Connection failed", {
+								description: errorMessage,
+							});
+						}
+					} catch (error) {
+						// Connection attempt failed (timeout, network error, etc.)
+						setConnectionStatus("disconnected");
+						const errorMessage =
+							error instanceof Error ? error.message : String(error);
+						toast.error("Connection failed", {
+							description: errorMessage,
+						});
+					} finally {
+						setLoadingPhase("complete");
+					}
 				}
 			};
 
 			loadData().catch((error) => {
 				console.error("Failed to load connection data:", error);
+				setConnectionStatus("disconnected");
 				setLoadingPhase("complete");
 			});
 		}
@@ -1537,13 +1569,25 @@ export function ConnectionDetails() {
 					<div className="flex flex-col gap-3 min-w-[280px]">
 						{loadingPhases.map((phaseInfo) => {
 							const status = getPhaseStatus(phaseInfo.phase);
+							// Show connection status for the connecting phase
+							const isConnectingPhase = phaseInfo.phase === "connecting";
+							const showConnectionStatus =
+								isConnectingPhase &&
+								loadingPhase !== "fetching-config" &&
+								connectionStatus !== "connected";
+
 							return (
 								<div key={phaseInfo.phase} className="flex items-center gap-3">
 									<div className="w-5 h-5 flex items-center justify-center shrink-0">
 										{status === "complete" ? (
 											<Check className="w-5 h-5 text-green-600" />
 										) : status === "active" ? (
-											<Spinner className="w-4 h-4" />
+											showConnectionStatus &&
+											connectionStatus === "disconnected" ? (
+												<X className="w-4 h-4 text-red-600" />
+											) : (
+												<Spinner className="w-4 h-4" />
+											)
 										) : (
 											<div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
 										)}
@@ -1553,11 +1597,16 @@ export function ConnectionDetails() {
 											status === "complete"
 												? "text-muted-foreground"
 												: status === "active"
-													? "text-foreground font-medium"
+													? showConnectionStatus &&
+														connectionStatus === "disconnected"
+														? "text-red-600 font-medium"
+														: "text-foreground font-medium"
 													: "text-muted-foreground/50"
 										}`}
 									>
-										{phaseInfo.label}
+										{showConnectionStatus && connectionStatus === "disconnected"
+											? "Connection failed"
+											: phaseInfo.label}
 									</span>
 								</div>
 							);
@@ -2642,6 +2691,7 @@ export function ConnectionDetails() {
 					navigate={navigate}
 					connectionStatus={connectionStatus}
 					onReconnect={fetchSchemaOverviewData}
+					onStatusChange={setConnectionStatus}
 				/>
 
 				<div className="flex-1 p-4 min-w-0 overflow-auto">
@@ -2946,6 +2996,7 @@ export function ConnectionDetails() {
 					navigate={navigate}
 					connectionStatus={connectionStatus}
 					onReconnect={fetchSchemaOverviewData}
+					onStatusChange={setConnectionStatus}
 				/>
 
 				<TabBar
