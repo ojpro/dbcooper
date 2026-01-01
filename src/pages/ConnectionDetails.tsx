@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { format as formatSQL } from "sql-formatter";
 import { useParams, useNavigate } from "react-router-dom";
 import {
 	type Tab,
@@ -101,6 +102,7 @@ import {
 	Check,
 	Copy,
 	Plus,
+	PaintBrush,
 } from "@phosphor-icons/react";
 import { DataTable } from "@/components/DataTable";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -1774,6 +1776,7 @@ export function ConnectionDetails() {
 							currentPage={tab.currentPage}
 							onPageChange={handlePageChange}
 							onRowClick={handleRowClick}
+							virtualize={tab.data.data.length > 100}
 						/>
 					</div>
 				) : (
@@ -2045,6 +2048,39 @@ export function ConnectionDetails() {
 										size="sm"
 										variant="outline"
 										onClick={() => {
+											try {
+												const formatted = formatSQL(tab.query, {
+													language:
+														connection?.db_type === "sqlite"
+															? "sqlite"
+															: connection?.db_type === "clickhouse"
+																? "sql"
+																: connection?.db_type === "postgres"
+																	? "postgresql"
+																	: "postgresql",
+													tabWidth: 2,
+													keywordCase: "upper",
+												});
+												handleQueryChange(formatted);
+												toast.success("SQL formatted");
+											} catch (error) {
+												toast.error("Failed to format SQL", {
+													description:
+														error instanceof Error
+															? error.message
+															: "Unknown error",
+												});
+											}
+										}}
+										disabled={!tab.query.trim()}
+									>
+										<PaintBrush className="w-4 h-4" />
+										Beautify
+									</Button>
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={() => {
 											// Pre-populate name if this is an existing saved query
 											if (tab.savedQueryName) {
 												setSaveQueryName(tab.savedQueryName);
@@ -2053,7 +2089,7 @@ export function ConnectionDetails() {
 										}}
 										disabled={!tab.query.trim()}
 									>
-										<FloppyDisk className="w-4 h-4 mr-2" />
+										<FloppyDisk className="w-4 h-4" />
 										Save Query
 									</Button>
 									<div className="flex">
@@ -2063,20 +2099,12 @@ export function ConnectionDetails() {
 											disabled={tab.executing}
 											className="rounded-r-none border-r-0 -mr-1"
 										>
-											{tab.executing ? (
-												<>
-													<Spinner />
-													Running...
-												</>
-											) : (
-												<>
-													Run Query{" "}
-													<span className="text-xs opacity-60">
-														({navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}
-														+↵)
-													</span>
-												</>
-											)}
+											{tab.executing ? <Spinner /> : null}
+											Run Query{" "}
+											<span className="text-xs opacity-60">
+												({navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}
+												+↵)
+											</span>
 										</Button>
 										<DropdownMenu>
 											<DropdownMenuTrigger
@@ -2302,11 +2330,12 @@ export function ConnectionDetails() {
 							<p className="text-sm text-destructive/80 mt-1">{tab.error}</p>
 						</div>
 					) : tab.results && tab.results.length > 0 ? (
-						<div className="max-h-[85vh] overflow-x-auto">
+						<div className="h-[85vh]">
 							<DataTable
 								data={tab.results}
 								columns={queryColumns}
 								hidePagination
+								virtualize={tab.results.length > 100}
 								onRowClick={(row) => {
 									if (!tab.results) return;
 									const index = tab.results.findIndex((r) => r === row);
