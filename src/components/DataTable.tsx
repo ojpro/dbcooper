@@ -29,9 +29,9 @@ interface DataTableProps<TData> {
 	onSortChange?: (sort: SortState | null) => void;
 }
 
-const COLUMN_WIDTH = 180;
-const MIN_COLUMN_WIDTH = 100;
-const MAX_COLUMN_WIDTH = 400;
+const COLUMN_WIDTH = 150;
+const MIN_COLUMN_WIDTH = 80;
+const MAX_COLUMN_WIDTH = 300;
 
 export function DataTable<TData>({
 	data,
@@ -257,10 +257,10 @@ export function DataTable<TData>({
 	};
 
 	return (
-		<div className="flex flex-col h-full w-full min-w-0">
+		<div className="flex flex-col max-h-full w-full min-w-0">
 			<div
 				ref={containerRef}
-				className="rounded-md border overflow-auto w-full h-full"
+				className="rounded-md border overflow-auto w-full"
 			>
 				<table
 					className="caption-bottom text-xs border-collapse"
