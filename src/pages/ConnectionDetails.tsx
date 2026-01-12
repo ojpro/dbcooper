@@ -307,6 +307,7 @@ export function ConnectionDetails() {
 	} | null>(null);
 	const [redisScanCursor, setRedisScanCursor] = useState<number | null>(null);
 	const [redisScanComplete, setRedisScanComplete] = useState<boolean>(true);
+	const [redisScanBaseCount, setRedisScanBaseCount] = useState<number>(0);
 
 	// Ref for Redis keys list virtualization
 	const redisKeysListRef = useRef<HTMLDivElement>(null);
@@ -332,6 +333,7 @@ export function ConnectionDetails() {
 				iteration: number;
 				max_iterations: number;
 				keys_found: number;
+				keys: string[];
 			}>("redis-scan-progress", (event) => {
 				if (event.payload.uuid === uuid) {
 					setRedisScanProgress({
@@ -339,6 +341,18 @@ export function ConnectionDetails() {
 						maxIterations: event.payload.max_iterations,
 						keysFound: event.payload.keys_found,
 					});
+					// Append new keys as they stream in
+					if (event.payload.keys.length > 0) {
+						setRedisKeys((prev) => {
+							const newKeys = event.payload.keys.map((key) => ({
+								key,
+								key_type: "",
+								ttl: -2,
+								size: null,
+							}));
+							return [...(prev || []), ...newKeys];
+						});
+					}
 				}
 			});
 
@@ -2549,6 +2563,8 @@ export function ConnectionDetails() {
 		setRedisScanProgress(null);
 		setRedisScanCursor(null);
 		setRedisScanComplete(true);
+		setRedisScanBaseCount(0); // Reset base count for new search
+		setRedisKeys([]); // Clear keys before starting - they will be streamed in via events
 
 		try {
 			const result = await api.redis.searchKeys(
@@ -2557,7 +2573,8 @@ export function ConnectionDetails() {
 				100,
 				0,
 			);
-			setRedisKeys(result.keys);
+			// Keys are streamed via events, so we don't need to set them here
+			// But we still need the final metadata from the result
 			setRedisSearchTime(result.time_taken_ms ?? null);
 			setRedisScanCursor(result.cursor);
 			setRedisScanComplete(result.scan_complete);
@@ -2574,6 +2591,7 @@ export function ConnectionDetails() {
 		if (!connection || redisScanComplete || redisScanCursor == null) return;
 		setLoadingRedisKeys(true);
 		setRedisScanProgress(null);
+		setRedisScanBaseCount(redisKeys?.length ?? 0); // Track existing keys for cumulative progress
 
 		try {
 			const result = await api.redis.searchKeys(
@@ -2582,7 +2600,7 @@ export function ConnectionDetails() {
 				100,
 				redisScanCursor,
 			);
-			setRedisKeys((prev) => [...(prev || []), ...result.keys]);
+			// Keys are streamed via events, so we don't need to append them here
 			setRedisSearchTime((prev) => {
 				const current = result.time_taken_ms;
 				if (prev == null || current == null) {
@@ -2741,10 +2759,11 @@ export function ConnectionDetails() {
 							value={redisPattern}
 							onChange={(e) => setRedisPattern(e.target.value)}
 							onKeyDown={(e) => {
-								if (e.key === "Enter") {
+								if (e.key === "Enter" && !loadingRedisKeys) {
 									handleRedisSearch();
 								}
 							}}
+							disabled={loadingRedisKeys}
 							className="flex-1 font-mono"
 							autoFocus
 						/>
@@ -2777,23 +2796,7 @@ export function ConnectionDetails() {
 					className="flex-1 overflow-y-auto p-0"
 					ref={redisKeysListRef}
 				>
-					{loadingRedisKeys ? (
-						<div className="flex flex-col items-center justify-center py-8 gap-2">
-							<Spinner />
-							{redisScanProgress && (
-								<div className="text-sm text-muted-foreground">
-									Scanning... {redisScanProgress.iteration}/
-									{redisScanProgress.maxIterations} iterations
-									{redisScanProgress.keysFound > 0 && (
-										<span className="ml-1">
-											({redisScanProgress.keysFound} key
-											{redisScanProgress.keysFound !== 1 ? "s" : ""} found)
-										</span>
-									)}
-								</div>
-							)}
-						</div>
-					) : redisKeys && redisKeys.length > 0 ? (
+					{redisKeys && redisKeys.length > 0 ? (
 						<div
 							style={{
 								height: `${redisKeysVirtualizer.getTotalSize()}px`,
@@ -2829,6 +2832,17 @@ export function ConnectionDetails() {
 								);
 							})}
 						</div>
+					) : loadingRedisKeys ? (
+						<div className="flex flex-col items-center justify-center py-8 gap-2">
+							<Spinner />
+							{redisScanProgress && (
+								<div className="text-sm text-muted-foreground">
+									Scanning... {redisScanBaseCount + redisScanProgress.keysFound}{" "}
+									keys found ({redisScanProgress.iteration}/
+									{redisScanProgress.maxIterations} iterations)
+								</div>
+							)}
+						</div>
 					) : redisKeys && redisKeys.length === 0 ? (
 						<div className="text-center py-12 text-muted-foreground">
 							No keys found matching pattern "{redisPattern}"
@@ -2850,6 +2864,18 @@ export function ConnectionDetails() {
 						</div>
 					)}
 				</CardContent>
+				{loadingRedisKeys && redisKeys && redisKeys.length > 0 && (
+					<div className="border-t p-3 flex items-center justify-center gap-2">
+						<Spinner />
+						{redisScanProgress && (
+							<span className="text-sm text-muted-foreground">
+								Scanning... {redisScanBaseCount + redisScanProgress.keysFound}{" "}
+								keys found ({redisScanProgress.iteration}/
+								{redisScanProgress.maxIterations} iterations)
+							</span>
+						)}
+					</div>
+				)}
 				{!redisScanComplete &&
 					redisKeys &&
 					redisKeys.length > 0 &&
@@ -3310,72 +3336,72 @@ export function ConnectionDetails() {
 																		</DropdownMenuContent>
 																	</DropdownMenu>
 																</SidebarMenuItem>
-														<CollapsibleContent>
-															<SidebarMenuSub>
-																{isLoading ? (
-																	<SidebarMenuSubItem>
-																		<SidebarMenuSubButton>
-																			<Spinner className="w-3 h-3" />
-																			<span className="text-muted-foreground">
-																				Loading...
-																			</span>
-																		</SidebarMenuSubButton>
-																	</SidebarMenuSubItem>
-																) : cols.length > 0 ? (
-																	cols.map((col) => (
-																		<SidebarMenuSubItem key={col.name}>
-																			<SidebarMenuSubButton
-																				className="group/col-item"
-																				onClick={() => {
-																					// If there's an active query tab, insert column name
-																					if (
-																						activeTab &&
-																						activeTab.type === "query"
-																					) {
-																						const queryTab =
-																							activeTab as QueryTab;
-																						const query = queryTab.query;
-																						const needsSpace =
-																							query.length > 0 &&
-																							!query.endsWith(" ") &&
-																							!query.endsWith("\n") &&
-																							!query.endsWith("\t");
-																						handleQueryChange(
-																							query +
-																								(needsSpace ? " " : "") +
-																								col.name,
-																						);
-																					}
-																				}}
-																			>
-																				<span className="font-mono text-xs truncate">
-																					{col.name}
-																				</span>
-																				<span className="text-muted-foreground group-hover/col-item:text-sidebar-accent-foreground text-xs ml-auto truncate max-w-[80px]">
-																					{col.type}
-																				</span>
-																				{col.primary_key && (
-																					<Badge
-																						variant="outline"
-																						className="text-[10px] px-1 py-0 ml-1"
+																<CollapsibleContent>
+																	<SidebarMenuSub>
+																		{isLoading ? (
+																			<SidebarMenuSubItem>
+																				<SidebarMenuSubButton>
+																					<Spinner className="w-3 h-3" />
+																					<span className="text-muted-foreground">
+																						Loading...
+																					</span>
+																				</SidebarMenuSubButton>
+																			</SidebarMenuSubItem>
+																		) : cols.length > 0 ? (
+																			cols.map((col) => (
+																				<SidebarMenuSubItem key={col.name}>
+																					<SidebarMenuSubButton
+																						className="group/col-item"
+																						onClick={() => {
+																							// If there's an active query tab, insert column name
+																							if (
+																								activeTab &&
+																								activeTab.type === "query"
+																							) {
+																								const queryTab =
+																									activeTab as QueryTab;
+																								const query = queryTab.query;
+																								const needsSpace =
+																									query.length > 0 &&
+																									!query.endsWith(" ") &&
+																									!query.endsWith("\n") &&
+																									!query.endsWith("\t");
+																								handleQueryChange(
+																									query +
+																										(needsSpace ? " " : "") +
+																										col.name,
+																								);
+																							}
+																						}}
 																					>
-																						PK
-																					</Badge>
-																				)}
-																			</SidebarMenuSubButton>
-																		</SidebarMenuSubItem>
-																	))
-																) : (
-																	<SidebarMenuSubItem>
-																		<SidebarMenuSubButton>
-																			<span className="text-muted-foreground text-xs">
-																				No columns
-																			</span>
-																		</SidebarMenuSubButton>
-																	</SidebarMenuSubItem>
-																)}
-															</SidebarMenuSub>
-														</CollapsibleContent>
+																						<span className="font-mono text-xs truncate">
+																							{col.name}
+																						</span>
+																						<span className="text-muted-foreground group-hover/col-item:text-sidebar-accent-foreground text-xs ml-auto truncate max-w-[80px]">
+																							{col.type}
+																						</span>
+																						{col.primary_key && (
+																							<Badge
+																								variant="outline"
+																								className="text-[10px] px-1 py-0 ml-1"
+																							>
+																								PK
+																							</Badge>
+																						)}
+																					</SidebarMenuSubButton>
+																				</SidebarMenuSubItem>
+																			))
+																		) : (
+																			<SidebarMenuSubItem>
+																				<SidebarMenuSubButton>
+																					<span className="text-muted-foreground text-xs">
+																						No columns
+																					</span>
+																				</SidebarMenuSubButton>
+																			</SidebarMenuSubItem>
+																		)}
+																	</SidebarMenuSub>
+																</CollapsibleContent>
 															</Collapsible>
 														</ContextMenuTrigger>
 														<ContextMenuContent>
