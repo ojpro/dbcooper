@@ -2320,7 +2320,7 @@ export function ConnectionDetails() {
 								);
 
 								// Use schema overview if available, otherwise use tableColumns cache
-								let columnsToUse = { ...tableColumns };
+								const columnsToUse = { ...tableColumns };
 
 								if (schemaOverview) {
 									schemaOverview.tables.forEach((table) => {
@@ -3274,14 +3274,15 @@ export function ConnectionDetails() {
 															>
 																<SidebarMenuItem>
 																	<CollapsibleTrigger
-																		render={
-																			<SidebarMenuButton className="w-full" />
-																		}
-																	>
+                                    render={<SidebarMenuButton className="w-full" />}
+                                    onClick={() => {
+																					handleOpenTableData(tableName);
+																				}}
+                                  >
 																		<CaretRight
 																			className={`w-3 h-3 transition-transform ${
 																				isExpanded ? "rotate-90" : ""
-																			}`}
+                                        }`}
 																		/>
 																		<Table className="w-3 h-3" />
 																		<span className="truncate text-xs">
