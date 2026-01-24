@@ -296,13 +296,40 @@ export function SchemaVisualizer({
 		[selectedTablesArray, onSelectedTablesChange],
 	);
 
+	const filteredTable = useMemo(
+		() =>
+			schemaOverview?.tables
+				.filter((table) => {
+					const fullName = `${table.schema}.${table.name}`;
+					return (
+						tableFilter === "" ||
+						fullName.toLowerCase().includes(tableFilter.toLowerCase()) ||
+						table.name.toLowerCase().includes(tableFilter.toLowerCase())
+					);
+				})
+				.map((t) => `${t.schema}.${t.name}`),
+		[schemaOverview, tableFilter],
+	);
+
 	const selectAll = useCallback(() => {
-		onSelectedTablesChange(allTableNames);
-	}, [allTableNames, onSelectedTablesChange]);
+		if (tableFilter === "" || !filteredTable) {
+			onSelectedTablesChange(allTableNames);
+		} else {
+			const combined = [...new Set([...selectedTablesArray, ...filteredTable])];
+			onSelectedTablesChange(combined);
+		}
+	}, [tableFilter, filteredTable, selectedTablesArray, allTableNames, onSelectedTablesChange]);
 
 	const deselectAll = useCallback(() => {
-		onSelectedTablesChange([]);
-	}, [onSelectedTablesChange]);
+		if (tableFilter === "" || !filteredTable) {
+			onSelectedTablesChange([]);
+		} else {
+			const remaining = selectedTablesArray.filter(
+				(t) => !filteredTable.includes(t),
+			);
+			onSelectedTablesChange(remaining);
+		}
+	}, [tableFilter, filteredTable, selectedTablesArray, onSelectedTablesChange]);
 
 	const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
 		if (!schemaOverview || filteredTables.length === 0) {
